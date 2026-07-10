@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光动论 V2.0 · 交互式计算器</title>
+<style>
+  :root {
+    --bg-deep: #0a0e1a;
+    --bg-card: #131829;
+    --bg-input: #1c2238;
+    --neon-blue: #00d4ff;
+    --neon-purple: #b14dff;
+    --neon-cyan: #00ffd4;
+    --text-main: #e6ecff;
+    --text-muted: #8a93b2;
+    --border-glow: rgba(0, 212, 255, 0.3);
+    --danger: #ff4d6d;
+    --success: #00ff9d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-main);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(177, 77, 255, 0.15), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(0, 212, 255, 0.12), transparent 40%);
+  }
+  header {
+    text-align: center;
+    padding: 30px 20px 20px;
+    border-bottom: 1px solid var(--border-glow);
+    background: linear-gradient(180deg, rgba(19, 24, 41, 0.8), transparent);
+  }
+  header h1 {
+    font-size: 2.2em;
+    background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+  header .subtitle {
+    color: var(--text-muted);
+    font-size: 0.95em;
+    letter-spacing: 1px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+    justify-content: center;
+  }
+  .tab-btn {
+    background: var(--bg-card);
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.25s ease;
+    font-family: inherit;
+  }
+  .tab-btn:hover {
+    color: var(--neon-blue);
+    border-color: var(--border-glow);
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+  }
+  .tab-btn.active {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(177, 77, 255, 0.2));
+    color: var(--neon-blue);
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 16px rgba(0, 212, 255, 0.35);
+  }
+  .panel {
+    display: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.08), inset 0 0 30px rgba(177, 77, 255, 0.04);
+    animation: fadeIn 0.4s ease;
+  }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .panel h2 {
+    color: var(--neon-cyan);
+    margin-bottom: 8px;
+    font-size: 1.3em;
+    border-left: 3px solid var(--neon-purple);
+    padding-left: 10px;
+  }
+  .panel .desc {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin-bottom: 18px;
+    line-height: 1.6;
+  }
+  .formula-box {
+    background: var(--bg-input);
+    border-left: 3px solid var(--neon-blue);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.9em;
+    color: var(--neon-cyan);
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+  .input-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .input-group label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin-bottom: 5px;
+  }
+  .input-group input, .input-group select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid rgba(138, 147, 178, 0.3);
+    color: var(--text-main);
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 0.95em;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .input-group input:focus, .input-group select:focus {
+    outline: none;
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+  }
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .preset-btn {
+    background: rgba(177, 77, 255, 0.15);
+    color: var(--neon-purple);
+    border: 1px solid rgba(177, 77, 255, 0.4);
+    padding: 5px 11px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 0.8em;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .preset-btn:hover {
+    background: rgba(177, 77, 255, 0.3);
+    color: #fff;
+  }
+  .btn-row { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-family: inherit;
+    font-weight: 600;
+    transition: all 0.25s;
+  }
+  .btn-calc {
+    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+    color: #fff;
+  }
+  .btn-calc:hover { box-shadow: 0 0 20px rgba(0, 212, 255, 0.5); transform: translateY(-1px); }
+  .btn-reset {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    border: 1px solid rgba(138, 147, 178, 0.4);
+  }
+  .btn-reset:hover { color: var(--danger); border-color: var(--danger); }
+  .result-area {
+    background: var(--bg-input);
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+  .result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed rgba(138, 147, 178, 0.2);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .result-item:last-child { border-bottom: none; }
+  .result-item .label { color: var(--text-muted); font-size: 0.88em; }
+  .result-item .value {
+    color: var(--neon-cyan);
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    text-align: right;
+  }
+  .result-item .value.highlight { color: var(--success); }
+  .result-item .value.warn { color: var(--danger); }
+  .calc-chain {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .chain-step {
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .chain-step .step-title { color: var(--neon-blue); font-size: 0.8em; margin-bottom: 4px; }
+  .chain-step .step-value { color: var(--neon-cyan); font-family: monospace; font-weight: 600; }
+  .chain-arrow { text-align: center; color: var(--neon-purple); font-size: 1.2em; }
+  canvas {
+    display: block;
+    background: var(--bg-input);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    margin-top: 14px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+  }
+  .badge-yes { background: rgba(0, 255, 157, 0.2); color: var(--success); }
+  .badge-no { background: rgba(255, 77, 109, 0.2); color: var(--danger); }
+  footer {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    border-top: 1px solid var(--border-glow);
+    margin-top: 30px;
+  }
+  footer .brand { color: var(--neon-purple); }
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.6em; }
+    .tab-btn { padding: 8px 11px; font-size: 0.8em; }
+    .panel { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>光动论 V2.0 · 交互式计算器</h1>
+  <div class="subtitle">Photokinetics Interactive Calculator · 光与物质相互作用的量化分析平台</div>
+</header>
+
+<div class="container">
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="photoelectric">光电效应</button>
+    <button class="tab-btn" data-tab="blackbody">黑体辐射</button>
+    <button class="tab-btn" data-tab="compton">康普顿散射</button>
+    <button class="tab-btn" data-tab="doppler">多普勒效应</button>
+    <button class="tab-btn" data-tab="gravitational">引力红移</button>
+    <button class="tab-btn" data-tab="photothermal">光热模型</button>
+    <button class="tab-btn" data-tab="nonlinear">非线性光学</button>
+    <button class="tab-btn" data-tab="tweezer">光镊力</button>
+  </div>
+
+  <!-- 1. 光电效应 -->
+  <div class="panel active" id="panel-photoelectric">
+    <h2>光电效应计算器</h2>
+    <p class="desc">基于爱因斯坦光电方程，计算光子能量、最大动能与遏止电压。当光子能量大于逸出功时，电子逸出并具有动能。</p>
+    <div class="formula-box">E = hc/λ ;  E_k = E - Φ ;  V_s = E_k / e</div>
+    <div class="preset-row">
+      <span style="color:var(--text-muted);align-self:center;font-size:0.85em;">材料预设：</span>
+      <button class="preset-btn" onclick="setPreset('pe-phi','2.28')">钠 (2.28 eV)</button>
+      <button class="preset-btn" onclick="setPreset('pe-phi','4.65')">铜 (4.65 eV)</button>
+      <button class="preset-btn" onclick="setPreset('pe-phi','5.10')">金 (5.10 eV)</button>
+      <button class="preset-btn" onclick="setPreset('pe-phi','4.33')">锌 (4.33 eV)</button>
+    </div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>逸出功 Φ (eV)</label>
+        <input type="number" id="pe-phi" value="2.28" step="0.01">
+      </div>
+      <div class="input-group">
+        <label>波长 λ (nm)</label>
+        <input type="number" id="pe-lambda" value="400" step="1">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcPhotoelectric()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('photoelectric',['pe-phi','pe-lambda'],['pe-result'])">重置</button>
+    </div>
+    <div class="result-area" id="pe-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+  </div>
+
+  <!-- 2. 黑体辐射 -->
+  <div class="panel" id="panel-blackbody">
+    <h2>黑体辐射计算器</h2>
+    <p class="desc">基于维恩位移定律与斯特藩-玻尔兹曼定律，计算黑体辐射的峰值波长与总辐射功率，并绘制普朗克光谱辐射度曲线。</p>
+    <div class="formula-box">λ_max = b/T (b=2.898e-3 m·K) ;  j = σT⁴ ;  B(λ,T) = 2hc²/λ⁵ / (exp(hc/λkT)-1)</div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>温度 T (K)</label>
+        <input type="number" id="bb-temp" value="5778" step="1">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcBlackbody()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('blackbody',['bb-temp'],['bb-result'])">重置</button>
+    </div>
+    <div class="result-area" id="bb-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+    <canvas id="bb-canvas" width="800" height="280"></canvas>
+  </div>
+
+  <!-- 3. 康普顿散射 -->
+  <div class="panel" id="panel-compton">
+    <h2>康普顿散射计算器</h2>
+    <p class="desc">计算X射线被自由电子散射后的波长位移、散射光子能量与电子反冲动能，验证光的粒子性。</p>
+    <div class="formula-box">Δλ = (h/m_e·c)(1-cosθ) ;  E' = hc/(λ+Δλ) ;  E_e = E - E'</div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>入射能量 (keV)</label>
+        <input type="number" id="cp-energy" value="100" step="1">
+      </div>
+      <div class="input-group">
+        <label>散射角 θ (度)</label>
+        <input type="number" id="cp-angle" value="90" step="1">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcCompton()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('compton',['cp-energy','cp-angle'],['cp-result'])">重置</button>
+    </div>
+    <div class="result-area" id="cp-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+    <canvas id="cp-canvas" width="800" height="300"></canvas>
+  </div>
+
+  <!-- 4. 多普勒效应 -->
+  <div class="panel" id="panel-doppler">
+    <h2>多普勒效应计算器</h2>
+    <p class="desc">基于相对论多普勒公式，计算光源相对运动时的观测频率、频移及红移参数。</p>
+    <div class="formula-box">接近：f' = f·√((1+β)/(1-β)) ;  远离：f' = f·√((1-β)/(1+β)) ;  β=v/c, z=Δf/f</div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>频率 (Hz)</label>
+        <input type="number" id="dp-freq" value="5e14" step="1e12">
+      </div>
+      <div class="input-group">
+        <label>速度 (km/s)</label>
+        <input type="number" id="dp-vel" value="30000" step="1000">
+      </div>
+      <div class="input-group">
+        <label>方向</label>
+        <select id="dp-dir">
+          <option value="approach">接近 (蓝移)</option>
+          <option value="recede" selected>远离 (红移)</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcDoppler()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('doppler',['dp-freq','dp-vel'],['dp-result'])">重置</button>
+    </div>
+    <div class="result-area" id="dp-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+  </div>
+
+  <!-- 5. 引力红移 -->
+  <div class="panel" id="panel-gravitational">
+    <h2>引力红移计算器</h2>
+    <p class="desc">基于广义相对论，计算光从引力场中逃逸时的频率相对偏移（引力时间膨胀效应）。</p>
+    <div class="formula-box">Δν/ν₀ = GM(1/r₁ - 1/r₂)/c²</div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>质量 M (kg)</label>
+        <input type="number" id="gr-mass" value="5.972e24" step="1e20">
+      </div>
+      <div class="input-group">
+        <label>发射半径 r₁ (m)</label>
+        <input type="number" id="gr-r1" value="6.371e6" step="1e3">
+      </div>
+      <div class="input-group">
+        <label>观测半径 r₂ (m)</label>
+        <input type="number" id="gr-r2" value="1e9" step="1e6">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcGravitational()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('gravitational',['gr-mass','gr-r1','gr-r2'],['gr-result'])">重置</button>
+    </div>
+    <div class="result-area" id="gr-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+  </div>
+
+  <!-- 6. 光热模型 -->
+  <div class="panel" id="panel-photothermal">
+    <h2>光热模型计算器（核心应用）</h2>
+    <p class="desc">光动论核心：四步计算链 α → I(z) → q → ΔT，描述光在介质中吸收衰减并转化为热能的全过程。</p>
+    <div class="formula-box">α = 4πκ/λ ;  I(z) = I₀·e^(-αz) ;  q = α·I(z) ;  ΔT = q·t/(ρ·Cp)</div>
+    <div class="preset-row">
+      <span style="color:var(--text-muted);align-self:center;font-size:0.85em;">材料预设：</span>
+      <button class="preset-btn" onclick="setWater()">水 (1064nm)</button>
+      <button class="preset-btn" onclick="setSilicon()">硅 (1550nm)</button>
+      <button class="preset-btn" onclick="setGold()">金 (532nm)</button>
+    </div>
+    <div class="input-grid">
+      <div class="input-group"><label>折射率 n</label><input type="number" id="pt-n" value="1.33" step="0.01"></div>
+      <div class="input-group"><label>消光系数 κ</label><input type="number" id="pt-kappa" value="0.00012" step="0.00001"></div>
+      <div class="input-group"><label>波长 λ (nm)</label><input type="number" id="pt-lambda" value="1064" step="1"></div>
+      <div class="input-group"><label>光强 I (W/cm²)</label><input type="number" id="pt-intensity" value="1000" step="10"></div>
+      <div class="input-group"><label>时间 t (s)</label><input type="number" id="pt-time" value="1" step="0.1"></div>
+      <div class="input-group"><label>密度 ρ (kg/m³)</label><input type="number" id="pt-rho" value="1000" step="1"></div>
+      <div class="input-group"><label>比热 Cp (J/kg·K)</label><input type="number" id="pt-cp" value="4186" step="1"></div>
+      <div class="input-group"><label>深度 z (m)</label><input type="number" id="pt-depth" value="0.001" step="0.0001"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcPhotothermal()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('photothermal',['pt-n','pt-kappa','pt-lambda','pt-intensity','pt-time','pt-rho','pt-cp','pt-depth'],['pt-result'])">重置</button>
+    </div>
+    <div class="result-area" id="pt-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+    <canvas id="pt-canvas" width="800" height="280"></canvas>
+  </div>
+
+  <!-- 7. 非线性光学 -->
+  <div class="panel" id="panel-nonlinear">
+    <h2>非线性光学计算器</h2>
+    <p class="desc">根据材料带隙与光子能量，判断吸收类型（单光子/双光子/三光子吸收）。</p>
+    <div class="formula-box">n·hν ≥ Eg  →  最小 n 使条件成立即为所需光子数</div>
+    <div class="input-grid">
+      <div class="input-group"><label>带隙 Eg (eV)</label><input type="number" id="nl-eg" value="1.12" step="0.01"></div>
+      <div class="input-group"><label>光子能量 hν (eV)</label><input type="number" id="nl-hv" value="0.6" step="0.01"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcNonlinear()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('nonlinear',['nl-eg','nl-hv'],['nl-result'])">重置</button>
+    </div>
+    <div class="result-area" id="nl-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+  </div>
+
+  <!-- 8. 光镊力 -->
+  <div class="panel" id="panel-tweezer">
+    <h2>光镊力计算器</h2>
+    <p class="desc">基于瑞利散射模型，计算光镊对微小粒子的梯度力（俘获力）与散射力（推力）。</p>
+    <div class="formula-box">F_grad = (n_m·a³/2)·Re(m²-1/m²+2)·∇I ;  F_scat = (n_m·σ·I)/c</div>
+    <div class="input-grid">
+      <div class="input-group"><label>光强 I (W/m²)</label><input type="number" id="tw-intensity" value="1e10" step="1e8"></div>
+      <div class="input-group"><label>粒子半径 a (nm)</label><input type="number" id="tw-radius" value="100" step="1"></div>
+      <div class="input-group"><label>折射率比 m (n_p/n_m)</label><input type="number" id="tw-ratio" value="1.2" step="0.01"></div>
+      <div class="input-group"><label>光强梯度 ∇I (W/m³)</label><input type="number" id="tw-grad" value="1e12" step="1e10"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-calc" onclick="calcTweezer()">计算</button>
+      <button class="btn btn-reset" onclick="resetPanel('tweezer',['tw-intensity','tw-radius','tw-ratio','tw-grad'],['tw-result'])">重置</button>
+    </div>
+    <div class="result-area" id="tw-result">
+      <div class="result-item"><span class="label">结果将在此显示...</span></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span class="brand">光动论 Photokinetics V2.0</span> · Cogito Lin, 2026 · AI辅助
+</footer>
+
+<script>
+// ===== 物理常数 =====
+const h = 6.626e-34;      // 普朗克常数 J·s
+const c = 3e8;            // 光速 m/s
+const e = 1.602e-19;      // 元电荷 C
+const kB = 1.381e-23;     // 玻尔兹曼常数 J/K
+const sigma = 5.670e-8;   // 斯特藩-玻尔兹曼常数 W/(m²·K⁴)
+const G = 6.674e-11;      // 万有引力常数
+const me = 9.109e-31;     // 电子静止质量 kg
+const bWien = 2.898e-3;   // 维恩位移常数 m·K
+
+// ===== Tab 切换 =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ===== 工具函数 =====
+function fmt(num, digits = 6) {
+  if (!isFinite(num)) return 'N/A';
+  if (num === 0) return '0';
+  const abs = Math.abs(num);
+  if (abs >= 1e6 || abs < 1e-3) return num.toExponential(digits);
+  return num.toFixed(digits).replace(/\.?0+$/, '');
+}
+function setPreset(id, val) { document.getElementById(id).value = val; }
+function setWater() { setVals({n:1.33,kappa:0.00012,lambda:1064,intensity:1000,time:1,rho:1000,cp:4186,depth:0.001}); }
+function setSilicon() { setVals({n:3.42,kappa:0.018,lambda:1550,intensity:5000,time:0.001,rho:2329,cp:700,depth:0.0001}); }
+function setGold() { setVals({n:0.47,kappa:2.4,lambda:532,intensity:10000,time:0.0001,rho:19300,cp:129,depth:0.00001}); }
+function setVals(v) {
+  document.getElementById('pt-n').value = v.n;
+  document.getElementById('pt-kappa').value = v.kappa;
+  document.getElementById('pt-lambda').value = v.lambda;
+  document.getElementById('pt-intensity').value = v.intensity;
+  document.getElementById('pt-time').value = v.time;
+  document.getElementById('pt-rho').value = v.rho;
+  document.getElementById('pt-cp').value = v.cp;
+  document.getElementById('pt-depth').value = v.depth;
+}
+function resetPanel(tab, inputIds, resultIds) {
+  // 不清空输入，只清空结果
+  resultIds.forEach(rid => {
+    document.getElementById(rid).innerHTML = '<div class="result-item"><span class="label">结果将在此显示...</span></div>';
+  });
+  if (tab === 'blackbody') clearCanvas('bb-canvas');
+  if (tab === 'compton') clearCanvas('cp-canvas');
+  if (tab === 'photothermal') clearCanvas('pt-canvas');
+}
+function clearCanvas(id) {
+  const cv = document.getElementById(id);
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+}
+
+// ===== 1. 光电效应 =====
+function calcPhotoelectric() {
+  const phi = parseFloat(document.getElementById('pe-phi').value); // eV
+  const lambda = parseFloat(document.getElementById('pe-lambda').value) * 1e-9; // m
+  const E_J = h * c / lambda;                  // 光子能量 J
+  const E_eV = E_J / e;                        // 光子能量 eV
+  const phi_J = phi * e;                       // 逸出功 J
+  const Ek_J = E_J - phi_J;                    // 最大动能 J
+  const Ek_eV = Ek_J / e;                      // 最大动能 eV
+  const Vs = Ek_J / e;                         // 遏止电压 V
+  const occur = E_eV > phi;
+  document.getElementById('pe-result').innerHTML = `
+    <div class="result-item"><span class="label">光子能量 E</span><span class="value">${fmt(E_eV)} eV = ${fmt(E_J)} J</span></div>
+    <div class="result-item"><span class="label">逸出功 Φ</span><span class="value">${fmt(phi)} eV</span></div>
+    <div class="result-item"><span class="label">是否发生光电效应</span><span class="value ${occur?'highlight':'warn'}"><span class="badge ${occur?'badge-yes':'badge-no'}">${occur?'发生':'未发生'}</span></span></div>
+    ${occur ? `
+    <div class="result-item"><span class="label">最大动能 E_k</span><span class="value highlight">${fmt(Ek_eV)} eV = ${fmt(Ek_J)} J</span></div>
+    <div class="result-item"><span class="label">遏止电压 V_s</span><span class="value highlight">${fmt(Vs)} V</span></div>
+    ` : '<div class="result-item"><span class="label" style="color:var(--danger);">光子能量不足以克服逸出功</span></div>'}
+  `;
+}
+
+// ===== 2. 黑体辐射 =====
+function calcBlackbody() {
+  const T = parseFloat(document.getElementById('bb-temp').value);
+  const lambdaMax = bWien / T;                       // 峰值波长 m
+  const j = sigma * Math.pow(T, 4);                  // 总辐射功率密度 W/m²
+  const sigmaCheck = j / Math.pow(T, 4);             // 验证 σ
+  document.getElementById('bb-result').innerHTML = `
+    <div class="result-item"><span class="label">峰值波长 λ_max</span><span class="value">${fmt(lambdaMax*1e9)} nm = ${fmt(lambdaMax*1e6)} μm</span></div>
+    <div class="result-item"><span class="label">总辐射功率密度 j</span><span class="value highlight">${fmt(j)} W/m²</span></div>
+    <div class="result-item"><span class="label">Stefan-Boltzmann 常数验证</span><span class="value">${fmt(sigmaCheck)} W/(m²·K⁴)</span></div>
+    <div class="result-item"><span class="label">理论值 σ</span><span class="value">${fmt(sigma)} W/(m²·K⁴)</span></div>
+    <div class="result-item"><span class="label">相对误差</span><span class="value">${fmt(Math.abs(sigmaCheck-sigma)/sigma*100)} %</span></div>
+  `;
+  drawBlackbody(T);
+}
+function drawBlackbody(T) {
+  const cv = document.getElementById('bb-canvas');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const padL = 50, padR = 20, padT = 20, padB = 40;
+  const pw = W - padL - padR, ph = H - padT - padB;
+  // 计算曲线数据
+  const lambdaMin = 1e-10, lambdaMaxPlot = Math.max(bWien/T * 6, 1e-7);
+  const N = 400;
+  let points = [];
+  let maxB = 0;
+  for (let i = 0; i < N; i++) {
+    const lam = lambdaMin + (lambdaMaxPlot - lambdaMin) * i / N;
+    const B = (2 * h * c * c / Math.pow(lam, 5)) / (Math.exp(h * c / (lam * kB * T)) - 1);
+    points.push([lam, B]);
+    if (B > maxB) maxB = B;
+  }
+  // 网格
+  ctx.strokeStyle = 'rgba(138,147,178,0.2)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + ph * i / 4;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+  }
+  for (let i = 0; i <= 5; i++) {
+    const x = padL + pw * i / 5;
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, H - padB); ctx.stroke();
+  }
+  // 坐标轴标签
+  ctx.fillStyle = '#8a93b2';
+  ctx.font = '12px Consolas';
+  ctx.fillText('波长 (nm)', W/2 - 30, H - 8);
+  ctx.save();
+  ctx.translate(14, H/2 + 30); ctx.rotate(-Math.PI/2);
+  ctx.fillText('光谱辐射度 B(λ,T)', 0, 0);
+  ctx.restore();
+  // x 轴刻度
+  for (let i = 0; i <= 5; i++) {
+    const x = padL + pw * i / 5;
+    const lam = lambdaMin + (lambdaMaxPlot - lambdaMin) * i / 5;
+    ctx.fillText(fmt(lam*1e9, 2), x - 15, H - padB + 14);
+  }
+  // 曲线
+  const grad = ctx.createLinearGradient(padL, padT, W - padR, padT);
+  grad.addColorStop(0, '#00d4ff'); grad.addColorStop(1, '#b14dff');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2.2;
+  ctx.shadowColor = '#00d4ff'; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = padL + (p[0] - lambdaMin) / (lambdaMaxPlot - lambdaMin) * pw;
+    const y = padT + ph - (p[1] / maxB) * ph;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // 填充
+  ctx.lineTo(padL + pw, padT + ph); ctx.lineTo(padL, padT + ph);
+  ctx.closePath();
+  const fillGrad = ctx.createLinearGradient(0, padT, 0, padT + ph);
+  fillGrad.addColorStop(0, 'rgba(0,212,255,0.25)');
+  fillGrad.addColorStop(1, 'rgba(177,77,255,0.02)');
+  ctx.fillStyle = fillGrad; ctx.fill();
+  // 峰值标记
+  const lamPeak = bWien / T;
+  const xPeak = padL + (lamPeak - lambdaMin) / (lambdaMaxPlot - lambdaMin) * pw;
+  ctx.strokeStyle = 'rgba(0,255,157,0.6)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(xPeak, padT); ctx.lineTo(xPeak, padT + ph); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#00ff9d';
+  ctx.fillText('λ_max=' + fmt(lamPeak*1e9, 1) + 'nm', xPeak + 5, padT + 14);
+}
+
+// ===== 3. 康普顿散射 =====
+function calcCompton() {
+  const E_keV = parseFloat(document.getElementById('cp-energy').value);
+  const angle = parseFloat(document.getElementById('cp-angle').value) * Math.PI / 180;
+  const E_J = E_keV * 1e3 * e;
+  const lambda = h * c / E_J;                       // 入射波长 m
+  const dLambda = (h / (me * c)) * (1 - Math.cos(angle));  // 波长位移 m
+  const lambdaScatter = lambda + dLambda;
+  const Escatter_J = h * c / lambdaScatter;
+  const Escatter_keV = Escatter_J / e / 1e3;
+  const Ee_J = E_J - Escatter_J;
+  const Ee_keV = Ee_J / e / 1e3;
+  document.getElementById('cp-result').innerHTML = `
+    <div class="result-item"><span class="label">入射波长 λ</span><span class="value">${fmt(lambda*1e12)} pm</span></div>
+    <div class="result-item"><span class="label">波长位移 Δλ</span><span class="value highlight">${fmt(dLambda*1e12)} pm</span></div>
+    <div class="result-item"><span class="label">散射光子波长 λ'</span><span class="value">${fmt(lambdaScatter*1e12)} pm</span></div>
+    <div class="result-item"><span class="label">散射光子能量 E'</span><span class="value highlight">${fmt(Escatter_keV)} keV</span></div>
+    <div class="result-item"><span class="label">电子反冲动能 E_e</span><span class="value highlight">${fmt(Ee_keV)} keV</span></div>
+    <div class="result-item"><span class="label">能量守恒检查</span><span class="value">${fmt((Escatter_keV+Ee_keV)/E_keV*100)} %</span></div>
+  `;
+  drawCompton(angle);
+}
+function drawCompton(angle) {
+  const cv = document.getElementById('cp-canvas');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const cx = W * 0.35, cy = H * 0.55;
+  const len = Math.min(W, H) * 0.32;
+  // 入射光子（蓝色，从左到中心）
+  ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#00d4ff'; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(cx - len, cy); ctx.lineTo(cx, cy);
+  ctx.stroke();
+  drawArrow(ctx, cx - len*0.6, cy, cx, cy, '#00d4ff');
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#00d4ff'; ctx.font = '13px Consolas';
+  ctx.fillText('入射光子 γ', cx - len + 5, cy - 10);
+  // 散射光子（紫色，按角度偏转）
+  const sx = cx + len * Math.cos(angle);
+  const sy = cy - len * Math.sin(angle);
+  ctx.strokeStyle = '#b14dff'; ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#b14dff'; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy); ctx.lineTo(sx, sy);
+  ctx.stroke();
+  drawArrow(ctx, cx + len*0.5*Math.cos(angle), cy - len*0.5*Math.sin(angle), sx, sy, '#b14dff');
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#b14dff';
+  ctx.fillText("散射光子 γ'", sx - 50, sy - 5);
+  // 电子（绿色，反冲方向）
+  const ex = cx + len * 0.7 * Math.sin(angle);
+  const ey = cy + len * 0.7 * Math.cos(angle) * 0.6;
+  ctx.strokeStyle = '#00ff9d'; ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#00ff9d'; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
+  ctx.stroke();
+  drawArrow(ctx, cx + (ex-cx)*0.5, cy + (ey-cy)*0.5, ex, ey, '#00ff9d');
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#00ff9d';
+  ctx.fillText('反冲电子 e⁻', ex + 5, ey + 5);
+  // 电子（中心）
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#8a93b2'; ctx.font = '12px Consolas';
+  ctx.fillText('e', cx - 3, cy + 4);
+  // 角度弧
+  ctx.strokeStyle = 'rgba(0,255,212,0.5)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 35, 0, -angle, true);
+  ctx.stroke();
+  ctx.fillStyle = '#00ffd4';
+  ctx.fillText('θ=' + (angle*180/Math.PI).toFixed(0) + '°', cx + 40, cy - 20);
+  // 水平参考线
+  ctx.strokeStyle = 'rgba(138,147,178,0.3)'; ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + len, cy); ctx.stroke();
+  ctx.setLineDash([]);
+}
+function drawArrow(ctx, x1, y1, x2, y2, color) {
+  const ang = Math.atan2(y2 - y1, x2 - x1);
+  const ah = 10;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ah * Math.cos(ang - 0.4), y2 - ah * Math.sin(ang - 0.4));
+  ctx.lineTo(x2 - ah * Math.cos(ang + 0.4), y2 - ah * Math.sin(ang + 0.4));
+  ctx.closePath(); ctx.fill();
+}
+
+// ===== 4. 多普勒效应 =====
+function calcDoppler() {
+  const f = parseFloat(document.getElementById('dp-freq').value);
+  const v_kms = parseFloat(document.getElementById('dp-vel').value);
+  const dir = document.getElementById('dp-dir').value;
+  const v = v_kms * 1e3;
+  const beta = v / c;
+  let fp;
+  if (dir === 'approach') {
+    fp = f * Math.sqrt((1 + beta) / (1 - beta));   // 接近，蓝移
+  } else {
+    fp = f * Math.sqrt((1 - beta) / (1 + beta));   // 远离，红移
+  }
+  const df = fp - f;
+  const z = dir === 'approach' ? (fp - f) / f : (f - fp) / fp;
+  document.getElementById('dp-result').innerHTML = `
+    <div class="result-item"><span class="label">速度参数 β = v/c</span><span class="value">${fmt(beta)}</span></div>
+    <div class="result-item"><span class="label">观测频率 f'</span><span class="value highlight">${fmt(fp)} Hz</span></div>
+    <div class="result-item"><span class="label">频移 Δf</span><span class="value highlight">${fmt(df)} Hz</span></div>
+    <div class="result-item"><span class="label">${dir==='approach'?'蓝移参数':'红移参数'} z</span><span class="value">${fmt(z)}</span></div>
+    <div class="result-item"><span class="label">非相对论近似 z≈v/c</span><span class="value">${fmt(beta)}</span></div>
+  `;
+}
+
+// ===== 5. 引力红移 =====
+function calcGravitational() {
+  const M = parseFloat(document.getElementById('gr-mass').value);
+  const r1 = parseFloat(document.getElementById('gr-r1').value);
+  const r2 = parseFloat(document.getElementById('gr-r2').value);
+  const dnu_nu = G * M * (1/r1 - 1/r2) / (c * c);
+  const rs = 2 * G * M / (c * c);   // 史瓦西半径
+  document.getElementById('gr-result').innerHTML = `
+    <div class="result-item"><span class="label">相对频移 Δν/ν₀</span><span class="value highlight">${fmt(dnu_nu)}</span></div>
+    <div class="result-item"><span class="label">频移百分比</span><span class="value">${fmt(dnu_nu*100)} %</span></div>
+    <div class="result-item"><span class="label">史瓦西半径 r_s</span><span class="value">${fmt(rs)} m</span></div>
+    <div class="result-item"><span class="label">r₁ 是否大于 r_s</span><span class="value ${r1>rs?'highlight':'warn'}"><span class="badge ${r1>rs?'badge-yes':'badge-no'}">${r1>rs?'是':'否(事件视界内)'}</span></span></div>
+    <div class="result-item"><span class="label">说明</span><span class="value" style="font-size:0.8em;">${dnu_nu>0?'红移(频率降低)':'蓝移(频率升高)'}</span></div>
+  `;
+}
+
+// ===== 6. 光热模型 =====
+function calcPhotothermal() {
+  const n = parseFloat(document.getElementById('pt-n').value);
+  const kappa = parseFloat(document.getElementById('pt-kappa').value);
+  const lambda = parseFloat(document.getElementById('pt-lambda').value) * 1e-9; // m
+  const I0 = parseFloat(document.getElementById('pt-intensity').value) * 1e4;    // W/m²
+  const t = parseFloat(document.getElementById('pt-time').value);
+  const rho = parseFloat(document.getElementById('pt-rho').value);
+  const Cp = parseFloat(document.getElementById('pt-cp').value);
+  const z = parseFloat(document.getElementById('pt-depth').value);
+  // 四步计算链
+  const alpha = 4 * Math.PI * kappa / lambda;       // 吸收系数 1/m
+  const Iz = I0 * Math.exp(-alpha * z);             // 深度z处光强 W/m²
+  const q = alpha * Iz;                             // 热源密度 W/m³
+  const dT = q * t / (rho * Cp);                    // 温升 K
+  const Iz0 = I0;                                   // 表面光强
+  const q0 = alpha * I0;                            // 表面热源
+  const dT0 = q0 * t / (rho * Cp);                  // 表面温升
+  document.getElementById('pt-result').innerHTML = `
+    <div style="color:var(--neon-blue);font-size:0.9em;margin-bottom:8px;">四步计算链 (深度 z = ${fmt(z)} m)：</div>
+    <div class="calc-chain">
+      <div class="chain-step"><div class="step-title">α 吸收系数</div><div class="step-value">${fmt(alpha)} 1/m</div></div>
+      <div class="chain-step"><div class="step-title">I(z) 深度光强</div><div class="step-value">${fmt(Iz)} W/m²</div></div>
+      <div class="chain-step"><div class="step-title">q 热源密度</div><div class="step-value">${fmt(q)} W/m³</div></div>
+      <div class="chain-step"><div class="step-title">ΔT 温升</div><div class="step-value">${fmt(dT)} K</div></div>
+    </div>
+    <div class="result-item" style="margin-top:14px;"><span class="label">表面光强 I₀</span><span class="value">${fmt(Iz0)} W/m²</span></div>
+    <div class="result-item"><span class="label">表面热源 q₀</span><span class="value">${fmt(q0)} W/m³</span></div>
+    <div class="result-item"><span class="label">表面温升 ΔT₀</span><span class="value highlight">${fmt(dT0)} K</span></div>
+    <div class="result-item"><span class="label">光强衰减率</span><span class="value">${fmt((1-Iz/Iz0)*100)} %</span></div>
+    <div class="result-item"><span class="label">穿透深度 1/α</span><span class="value">${fmt(1/alpha)} m</span></div>
+  `;
+  drawPhotothermal(alpha, I0);
+}
+function drawPhotothermal(alpha, I0) {
+  const cv = document.getElementById('pt-canvas');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const padL = 55, padR = 20, padT = 20, padB = 40;
+  const pw = W - padL - padR, ph = H - padT - padB;
+  const zMax = Math.max(5 / alpha, 1e-9);
+  const N = 300;
+  let pts = [];
+  for (let i = 0; i <= N; i++) {
+    const z = zMax * i / N;
+    const I = I0 * Math.exp(-alpha * z);
+    pts.push([z, I]);
+  }
+  // 网格
+  ctx.strokeStyle = 'rgba(138,147,178,0.2)'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + ph * i / 4;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+  }
+  for (let i = 0; i <= 5; i++) {
+    const x = padL + pw * i / 5;
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, H - padB); ctx.stroke();
+  }
+  // 标签
+  ctx.fillStyle = '#8a93b2'; ctx.font = '12px Consolas';
+  ctx.fillText('深度 z (m)', W/2 - 30, H - 8);
+  ctx.save();
+  ctx.translate(14, H/2 + 40); ctx.rotate(-Math.PI/2);
+  ctx.fillText('光强 I(z) (W/m²)', 0, 0);
+  ctx.restore();
+  // x 刻度
+  for (let i = 0; i <= 5; i++) {
+    const x = padL + pw * i / 5;
+    const z = zMax * i / 5;
+    ctx.fillText(fmt(z, 3), x - 18, H - padB + 14);
+  }
+  // 曲线
+  const grad = ctx.createLinearGradient(padL, 0, W - padR, 0);
+  grad.addColorStop(0, '#00ffd4'); grad.addColorStop(1, '#b14dff');
+  ctx.strokeStyle = grad; ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#00ffd4'; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const x = padL + (p[0] / zMax) * pw;
+    const y = padT + ph - (p[1] / I0) * ph;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // 填充
+  ctx.lineTo(padL + pw, padT + ph); ctx.lineTo(padL, padT + ph);
+  ctx.closePath();
+  const fg = ctx.createLinearGradient(0, padT, 0, padT + ph);
+  fg.addColorStop(0, 'rgba(0,255,212,0.3)');
+  fg.addColorStop(1, 'rgba(177,77,255,0.03)');
+  ctx.fillStyle = fg; ctx.fill();
+  // 1/e 标记
+  const z1e = 1 / alpha;
+  const x1e = padL + (z1e / zMax) * pw;
+  const y1e = padT + ph - (Math.exp(-1)) * ph;
+  ctx.strokeStyle = 'rgba(255,77,109,0.7)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(x1e, padT); ctx.lineTo(x1e, padT + ph); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(padL, y1e); ctx.lineTo(x1e, y1e); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ff4d6d';
+  ctx.fillText('1/e 深度=' + fmt(z1e, 3), x1e + 5, padT + 14);
+  ctx.fillText('I₀/e=' + fmt(I0/Math.E), padL + 5, y1e - 5);
+}
+
+// ===== 7. 非线性光学 =====
+function calcNonlinear() {
+  const Eg = parseFloat(document.getElementById('nl-eg').value);
+  const hv = parseFloat(document.getElementById('nl-hv').value);
+  let n = 1, type = '';
+  if (hv >= Eg) {
+    n = 1; type = '单光子吸收 (Linear)';
+  } else if (2 * hv >= Eg) {
+    n = 2; type = '双光子吸收 (TPA)';
+  } else if (3 * hv >= Eg) {
+    n = 3; type = '三光子吸收 (3PA)';
+  } else {
+    n = -1; type = '无法激发 (需更多光子)';
+  }
+  const totalE = n > 0 ? n * hv : 0;
+  const excess = n > 0 ? totalE - Eg : 0;
+  let color = n === 1 ? '#00ff9d' : (n === 2 ? '#00d4ff' : (n === 3 ? '#b14dff' : '#ff4d6d'));
+  document.getElementById('nl-result').innerHTML = `
+    <div class="result-item"><span class="label">带隙 Eg</span><span class="value">${fmt(Eg)} eV</span></div>
+    <div class="result-item"><span class="label">光子能量 hν</span><span class="value">${fmt(hv)} eV</span></div>
+    <div class="result-item"><span class="label">吸收光子数 n</span><span class="value highlight" style="color:${color};">${n > 0 ? n : 'N/A'}</span></div>
+    <div class="result-item"><span class="label">吸收类型</span><span class="value highlight" style="color:${color};">${type}</span></div>
+    ${n > 0 ? `
+    <div class="result-item"><span class="label">总吸收能量 n·hν</span><span class="value">${fmt(totalE)} eV</span></div>
+    <div class="result-item"><span class="label">超过带隙能量</span><span class="value">${fmt(excess)} eV</span></div>
+    ` : ''}
+  `;
+}
+
+// ===== 8. 光镊力 =====
+function calcTweezer() {
+  const I = parseFloat(document.getElementById('tw-intensity').value);
+  const a_nm = parseFloat(document.getElementById('tw-radius').value);
+  const m = parseFloat(document.getElementById('tw-ratio').value);
+  const gradI = parseFloat(document.getElementById('tw-grad').value);
+  const a = a_nm * 1e-9;
+  const nm = 1.0; // 介质折射率（水近似1）
+  // 极化率（瑞利近似）
+  const m2 = m * m;
+  const polarizability = (nm * a * a * a / 2) * (m2 - 1) / (m2 + 2);
+  // 梯度力
+  const Fgrad = polarizability * gradI;
+  // 波数 k：取可见光 λ=500nm 近似
+  const k = 2 * Math.PI * nm / (500e-9);
+  // 散射截面 σ_s（瑞利散射）
+  const sigma_s = (8 * Math.PI / 3) * Math.pow(k, 4) * Math.pow(polarizability, 2);
+  const Fscat = (nm * sigma_s * I) / c;
+  // 总力
+  const Ftotal = Math.sqrt(Fgrad * Fgrad + Fscat * Fscat);
+  document.getElementById('tw-result').innerHTML = `
+    <div class="result-item"><span class="label">粒子半径 a</span><span class="value">${fmt(a_nm)} nm = ${fmt(a)} m</span></div>
+    <div class="result-item"><span class="label">极化率 α</span><span class="value">${fmt(polarizability)} m³</span></div>
+    <div class="result-item"><span class="label">散射截面 σ_s</span><span class="value">${fmt(sigma_s)} m²</span></div>
+    <div class="result-item"><span class="label">梯度力 F_grad</span><span class="value highlight">${fmt(Fgrad)} N</span></div>
+    <div class="result-item"><span class="label">散射力 F_scat</span><span class="value highlight">${fmt(Fscat)} N</span></div>
+    <div class="result-item"><span class="label">合力 |F|</span><span class="value highlight">${fmt(Ftotal)} N</span></div>
+    <div class="result-item"><span class="label">梯度/散射力比</span><span class="value">${fmt(Fgrad / (Fscat || 1e-30))}</span></div>
+    <div class="result-item"><span class="label">俘获效率</span><span class="value">${fmt(Fgrad/(Fscat+Fgrad)*100)} %</span></div>
+  `;
+}
+
+// ===== 初始加载 =====
+window.addEventListener('DOMContentLoaded', () => {
+  calcPhotoelectric();
+});
+</script>
+</body>
+</html>
