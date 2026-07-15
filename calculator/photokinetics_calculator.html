@@ -473,7 +473,7 @@
       <div class="input-group"><label>光强 I (W/m²)</label><input type="number" id="tw-intensity" value="1e10" step="1e8"></div>
       <div class="input-group"><label>粒子半径 a (nm)</label><input type="number" id="tw-radius" value="100" step="1"></div>
       <div class="input-group"><label>折射率比 m (n_p/n_m)</label><input type="number" id="tw-ratio" value="1.2" step="0.01"></div>
-      <div class="input-group"><label>光强梯度 ∇I (W/m³)</label><input type="number" id="tw-grad" value="1e12" step="1e10"></div>
+      <div class="input-group"><label>光强梯度 ∇I (W/m³)</label><input type="number" id="tw-grad" value="5e17" step="1e15"></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-calc" onclick="calcTweezer()">计算</button>
@@ -491,14 +491,14 @@
 
 <script>
 // ===== 物理常数 =====
-const h = 6.626e-34;      // 普朗克常数 J·s
-const c = 3e8;            // 光速 m/s
-const e = 1.602e-19;      // 元电荷 C
-const kB = 1.381e-23;     // 玻尔兹曼常数 J/K
-const sigma = 5.670e-8;   // 斯特藩-玻尔兹曼常数 W/(m²·K⁴)
-const G = 6.674e-11;      // 万有引力常数
-const me = 9.109e-31;     // 电子静止质量 kg
-const bWien = 2.898e-3;   // 维恩位移常数 m·K
+const h = 6.62607015e-34;   // 普朗克常数 J·s (CODATA 2018 精确值)
+const c = 2.99792458e8;     // 光速 m/s (精确值)
+const e = 1.602176634e-19;  // 元电荷 C (精确值)
+const kB = 1.380649e-23;    // 玻尔兹曼常数 J/K (精确值)
+const sigma = 5.670374419e-8; // 斯特藩-玻尔兹曼常数 W/(m²·K⁴)
+const G = 6.67430e-11;      // 万有引力常数 m³/(kg·s²)
+const me = 9.1093837015e-31; // 电子静止质量 kg
+const bWien = 2.897771955e-3; // 维恩位移常数 m·K
 
 // ===== Tab 切换 =====
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -901,28 +901,24 @@ function drawPhotothermal(alpha, I0) {
 function calcNonlinear() {
   const Eg = parseFloat(document.getElementById('nl-eg').value);
   const hv = parseFloat(document.getElementById('nl-hv').value);
-  let n = 1, type = '';
-  if (hv >= Eg) {
-    n = 1; type = '单光子吸收 (Linear)';
-  } else if (2 * hv >= Eg) {
-    n = 2; type = '双光子吸收 (TPA)';
-  } else if (3 * hv >= Eg) {
-    n = 3; type = '三光子吸收 (3PA)';
-  } else {
-    n = -1; type = '无法激发 (需更多光子)';
-  }
-  const totalE = n > 0 ? n * hv : 0;
-  const excess = n > 0 ? totalE - Eg : 0;
-  let color = n === 1 ? '#00ff9d' : (n === 2 ? '#00d4ff' : (n === 3 ? '#b14dff' : '#ff4d6d'));
+  // 使用 ceil 计算多光子吸收阶数，支持任意阶数
+  const ratio = Eg / hv;
+  const n = Math.ceil(ratio);
+  const names = {1: '单光子吸收 (Linear)', 2: '双光子吸收 (TPA)', 3: '三光子吸收 (3PA)',
+                 4: '四光子吸收 (4PA)', 5: '五光子吸收 (5PA)', 6: '六光子吸收 (6PA)'};
+  const type = names[n] || n + '光子吸收 (' + n + 'PA)';
+  const totalE = n * hv;
+  const excess = totalE - Eg;
+  const colors = ['#00ff9d', '#00d4ff', '#b14dff', '#ff4d6d', '#ffd700', '#ff6347'];
+  const color = colors[Math.min(n - 1, 5)];
   document.getElementById('nl-result').innerHTML = `
     <div class="result-item"><span class="label">带隙 Eg</span><span class="value">${fmt(Eg)} eV</span></div>
     <div class="result-item"><span class="label">光子能量 hν</span><span class="value">${fmt(hv)} eV</span></div>
-    <div class="result-item"><span class="label">吸收光子数 n</span><span class="value highlight" style="color:${color};">${n > 0 ? n : 'N/A'}</span></div>
+    <div class="result-item"><span class="label">Eg/hν</span><span class="value">${fmt(ratio)}</span></div>
+    <div class="result-item"><span class="label">吸收光子数 n</span><span class="value highlight" style="color:${color};">${n}</span></div>
     <div class="result-item"><span class="label">吸收类型</span><span class="value highlight" style="color:${color};">${type}</span></div>
-    ${n > 0 ? `
     <div class="result-item"><span class="label">总吸收能量 n·hν</span><span class="value">${fmt(totalE)} eV</span></div>
     <div class="result-item"><span class="label">超过带隙能量</span><span class="value">${fmt(excess)} eV</span></div>
-    ` : ''}
   `;
 }
 
@@ -934,25 +930,28 @@ function calcTweezer() {
   const gradI = parseFloat(document.getElementById('tw-grad').value);
   const a = a_nm * 1e-9;
   const nm = 1.0; // 介质折射率（水近似1）
-  // 极化率（瑞利近似）
+  // 约化极化率（瑞利近似）α = 4π·a³·(m²−1)/(m²+2)
   const m2 = m * m;
-  const polarizability = (nm * a * a * a / 2) * (m2 - 1) / (m2 + 2);
-  // 梯度力
-  const Fgrad = polarizability * gradI;
+  const alpha = 4 * Math.PI * a * a * a * (m2 - 1) / (m2 + 2);
+  // 梯度力 F_grad = n_m·α·∇I / c
+  const Fgrad = nm * alpha * gradI / c;
   // 波数 k：取可见光 λ=500nm 近似
   const k = 2 * Math.PI * nm / (500e-9);
   // 散射截面 σ_s（瑞利散射）
-  const sigma_s = (8 * Math.PI / 3) * Math.pow(k, 4) * Math.pow(polarizability, 2);
+  const sigma_s = (8 * Math.PI / 3) * Math.pow(k, 4) * Math.pow(alpha, 2);
   const Fscat = (nm * sigma_s * I) / c;
   // 总力
   const Ftotal = Math.sqrt(Fgrad * Fgrad + Fscat * Fscat);
+  // 转换为 pN
+  const Fgrad_pN = Fgrad * 1e12;
+  const Fscat_pN = Fscat * 1e12;
   document.getElementById('tw-result').innerHTML = `
     <div class="result-item"><span class="label">粒子半径 a</span><span class="value">${fmt(a_nm)} nm = ${fmt(a)} m</span></div>
-    <div class="result-item"><span class="label">极化率 α</span><span class="value">${fmt(polarizability)} m³</span></div>
+    <div class="result-item"><span class="label">极化率 α</span><span class="value">${fmt(alpha)} m³</span></div>
     <div class="result-item"><span class="label">散射截面 σ_s</span><span class="value">${fmt(sigma_s)} m²</span></div>
-    <div class="result-item"><span class="label">梯度力 F_grad</span><span class="value highlight">${fmt(Fgrad)} N</span></div>
-    <div class="result-item"><span class="label">散射力 F_scat</span><span class="value highlight">${fmt(Fscat)} N</span></div>
-    <div class="result-item"><span class="label">合力 |F|</span><span class="value highlight">${fmt(Ftotal)} N</span></div>
+    <div class="result-item"><span class="label">梯度力 F_grad</span><span class="value highlight">${fmt(Fgrad_pN)} pN</span></div>
+    <div class="result-item"><span class="label">散射力 F_scat</span><span class="value highlight">${fmt(Fscat_pN)} pN</span></div>
+    <div class="result-item"><span class="label">合力 |F|</span><span class="value highlight">${fmt(Ftotal * 1e12)} pN</span></div>
     <div class="result-item"><span class="label">梯度/散射力比</span><span class="value">${fmt(Fgrad / (Fscat || 1e-30))}</span></div>
     <div class="result-item"><span class="label">俘获效率</span><span class="value">${fmt(Fgrad/(Fscat+Fgrad)*100)} %</span></div>
   `;

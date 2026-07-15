@@ -363,9 +363,14 @@ def calc_doppler(nu0, v_km_s, receding=True):
         nu_cl = nu0 * (1.0 + beta)
         nu_rel = nu0 * math.sqrt((1.0 + beta) / (1.0 - beta))
 
-    # 相对频移 Δν/ν₀
+    # 相对频移 (经典): Δν/ν₀
     z_cl = (nu_cl - nu0) / nu0
-    z_rel = (nu_rel - nu0) / nu0
+
+    # 红移参数 z = ν₀/ν_obs − 1 (天文标准定义)
+    if receding:
+        z_rel = (nu0 - nu_rel) / nu_rel   # 红移: z = ν₀/ν_obs − 1 > 0
+    else:
+        z_rel = (nu_rel - nu0) / nu0      # 蓝移: 负红移
 
     return nu_cl, nu_rel, z_cl, z_rel
 
@@ -387,23 +392,23 @@ def run_doppler():
     print("  ── 计算结果 ──────────────────────────────────")
     label = "远离(红移)" if receding else "靠近(蓝移)"
     print("  运动方向: {}".format(label))
-    print("  经典  : ν_obs = {:.6e} Hz,  Δν/ν₀ = {:.6f}".format(nu_cl, z_cl))
-    print("  相对论: ν_obs = {:.6e} Hz,  Δν/ν₀ = {:.6f}".format(nu_rel, z_rel))
+    print("  经典  : ν_obs = {:.6e} Hz,  z = {:.6f}".format(nu_cl, z_cl))
+    print("  相对论: ν_obs = {:.6e} Hz,  z = {:.6f}".format(nu_rel, z_rel))
     if receding:
-        print("  红移 z (相对论) = {:.6f}".format(-z_rel))
+        print("  红移 z (相对论) = {:.6f}".format(z_rel))
     print()
 
 
 def verify_doppler():
-    """验证: v=30000 km/s 远离时红移 z ≈ 0.1。"""
+    """验证: v=30000 km/s 远离时红移 z ≈ 0.106。"""
     print_header("▶ 验证: 光学多普勒红移")
     nu0 = 5.0e14  # 约对应 600 nm 可见光
     v = 30000.0    # km/s
     _, _, z_cl, z_rel = calc_doppler(nu0, v, receding=True)
     print("  v = 30000 km/s (0.1c),  远离")
-    print("  经典红移  z = {:.4f}".format(-z_cl))
-    print("  相对论红移 z = {:.4f}  (期望 ≈ 0.1)".format(-z_rel))
-    print("  注: v=0.1c 时相对论修正约 5%，经典结果仍为良好近似")
+    print("  经典红移  z = {:.4f}".format(z_cl))
+    print("  相对论红移 z = {:.4f}  (期望 ≈ 0.106)".format(z_rel))
+    print("  注: v=0.1c 时相对论修正约 10%，经典结果偏差较大")
 
 
 # ============================================================================
@@ -635,42 +640,44 @@ def verify_nonlinear():
 # 模块 8: 光镊力计算器
 # ============================================================================
 
-def calc_optical_tweezer(I_W_cm2, r_nm, n_r, c_val=C):
+def calc_optical_tweezer(I_W_cm2, r_nm, n_r, gradI=5e17, lambda_nm=500):
     """
-    光镊力计算（几何光学近似，适用于 r ~ λ 的介电粒子）。
+    光镊力计算（瑞利近似，适用于 r ≪ λ 的介电粒子）。
 
-    公式:
-        几何截面:    σ = π·r²
-        散射效率因子: Q_s = 2·((m−1)/m)²
-        梯度效率因子: Q_g = (m²−1)/(m²+2)
-        散射力:      F_scat = Q_s · I · σ / c   (沿光传播方向)
-        梯度力:      F_grad = Q_g · I · σ / c   (指向光强极大处)
-
-    注: 本模型为简化估算，适用于 r ≳ λ 的米氏粒子。
-        对于 r ≪ λ 的瑞利粒子，应使用偶极近似公式。
+    公式 (Harada & Asakura 1996):
+        约化极化率:  α = 4π·a³·(m²−1)/(m²+2)
+        梯度力:      F_grad = n_m·α·∇I / c    (指向光强极大处)
+        散射截面:    σ_s = (8π/3)·k⁴·α²       (瑞利散射)
+        散射力:      F_scat = n_m·σ_s·I / c    (沿光传播方向)
 
     参数:
-        I_W_cm2 — 光强 (W/cm²)
-        r_nm    — 粒子半径 (nm)
-        n_r     — 折射率比 m = n_particle / n_medium
-        c_val   — 光速 (m/s)，默认为真空光速
+        I_W_cm2   — 光强 (W/cm²)
+        r_nm      — 粒子半径 (nm)
+        n_r       — 折射率比 m = n_particle / n_medium
+        gradI     — 光强梯度 ∇I (W/m³)，默认 5e17（典型光镊聚焦条件）
+        lambda_nm — 波长 (nm)，用于计算波数 k，默认 500nm
 
     返回: (F_grad_pN, F_scat_pN)
     """
     r = r_nm * 1e-9               # 半径转米
     I = I_W_cm2 * 1e4             # 光强转 W/m²
+    n_m = 1.0                     # 介质折射率（水近似为1）
 
-    # 几何截面
-    sigma = math.pi * r**2        # m²
+    # 约化极化率 (瑞利近似)
+    m2 = n_r * n_r
+    alpha = 4.0 * math.pi * r**3 * (m2 - 1.0) / (m2 + 2.0)
 
-    # 效率因子
-    m = n_r
-    Q_s = 2.0 * ((m - 1.0) / m)**2
-    Q_g = (m**2 - 1.0) / (m**2 + 2.0)
+    # 梯度力 F_grad = n_m·α·∇I / c
+    F_grad = n_m * alpha * gradI / C    # N
 
-    # 力计算 (N)
-    F_scat = Q_s * I * sigma / c_val
-    F_grad = Q_g * I * sigma / c_val
+    # 波数
+    k = 2.0 * math.pi * n_m / (lambda_nm * 1e-9)
+
+    # 瑞利散射截面
+    sigma_s = (8.0 * math.pi / 3.0) * k**4 * alpha**2
+
+    # 散射力
+    F_scat = n_m * sigma_s * I / C   # N
 
     # 转换为 pN (1 pN = 1e-12 N)
     F_grad_pN = F_grad * 1e12
@@ -681,17 +688,16 @@ def calc_optical_tweezer(I_W_cm2, r_nm, n_r, c_val=C):
 
 def run_optical_tweezer():
     """光镊力交互模块。"""
-    print_header("模块 8: 光镊力计算器 (几何光学近似)")
-    print("  F = Q·I·σ/c,  σ=πr²,  Q_s=2((m−1)/m)²,  Q_g=(m²−1)/(m²+2)")
+    print_header("模块 8: 光镊力计算器 (瑞利近似)")
+    print("  α=(n_m·a³/2)(m²−1)/(m²+2),  F_grad=α·∇I,  F_scat=n_m·σ_s·I/c")
     print()
 
     I   = safe_input_float("  请输入光强 I (W/cm²): ")
     r   = safe_input_float("  请输入粒子半径 r (nm): ")
     n_r = safe_input_float("  请输入折射率比 n_r (粒子/介质) [1.5]: ", default=1.5)
-    c_in = input("  请输入光速 c (m/s) [回车=真空光速 2.998e8]: ").strip()
-    c_val = float(c_in) if c_in else C
+    gradI = safe_input_float("  请输入光强梯度 ∇I (W/m³) [5e17]: ", default=5e17)
 
-    F_grad, F_scat = calc_optical_tweezer(I, r, n_r, c_val)
+    F_grad, F_scat = calc_optical_tweezer(I, r, n_r, gradI)
 
     print()
     print("  ── 计算结果 ──────────────────────────────────")
@@ -702,15 +708,14 @@ def run_optical_tweezer():
 
 
 def verify_optical_tweezer():
-    """验证: I=10⁶ W/cm², r=500nm, n_r=1.5 → F_grad 量级 ~pN。"""
-    print_header("▶ 验证: 光镊力估算")
-    F_grad, F_scat = calc_optical_tweezer(1e6, 500, 1.5)
-    print("  I=10⁶ W/cm²,  r=500 nm,  n_r=1.5 (玻璃珠/水)")
+    """验证: 典型光镊参数下 F_grad 量级 ~pN。"""
+    print_header("▶ 验证: 光镊力估算 (瑞利近似)")
+    F_grad, F_scat = calc_optical_tweezer(1e6, 100, 1.5)
+    print("  I=10⁶ W/cm²,  r=100 nm,  n_r=1.5,  ∇I=5×10¹⁷ W/m³")
     print("  ────────────────────────────────────────────")
     print("  梯度力 F_grad = {:.4f} pN".format(F_grad))
     print("  散射力 F_scat = {:.4f} pN".format(F_scat))
-    print("  注: 实际光镊中力的大小高度依赖聚焦条件(NA/束腰)，")
-    print("      文献报道典型值在 0.1~10 pN 范围，此处给出量级估计。")
+    print("  注: 瑞利近似适用于 r≪λ。文献报道典型值在 0.1~10 pN 范围。")
 
 
 # ============================================================================
