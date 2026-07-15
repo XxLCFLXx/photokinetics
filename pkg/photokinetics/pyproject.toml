@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "photokinetics"
-version = "2.0.0"
-description = "Photokinetics V2.0 — 可微光学物理引擎 (Differentiable Optics Engine in PyTorch)"
+version = "2.1.0"
+description = "Photokinetics V2.1 — 可微光学物理引擎 (Differentiable Optics Engine in PyTorch) with time-resolved photothermal model"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.8"

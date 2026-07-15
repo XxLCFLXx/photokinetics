@@ -30,11 +30,15 @@ from photokinetics.modules.compton import calc_compton
 from photokinetics.modules.doppler import calc_doppler
 from photokinetics.modules.gravitational import calc_gravitational_redshift
 from photokinetics.modules.photothermal import calc_photothermal
+from photokinetics.modules.time_resolved import (
+    calc_photothermal_timed,
+    calc_photothermal_auto,
+)
 from photokinetics.modules.nonlinear import calc_nonlinear_order
 from photokinetics.modules.tweezer import calc_tweezer_force
 
-__version__ = "2.0.0"
-__description__ = "Photokinetics V2.0 - Differentiable optics simulation in PyTorch"
+__version__ = "2.1.0"
+__description__ = "Photokinetics V2.1 - Differentiable optics engine with time-resolved photothermal model"
 __author__ = "Cogito Lin"
 __email__ = "noreply@example.com"
 __license__ = "MIT"
