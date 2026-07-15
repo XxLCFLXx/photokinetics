@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "photokinetics"
+version = "2.0.0"
+description = "Photokinetics V2.0 — 可微光学物理引擎 (Differentiable Optics Engine in PyTorch)"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "Cogito Lin", email = "noreply@example.com"}
+]
+keywords = [
+    "optics",
+    "photonics",
+    "photothermal",
+    "differentiable-physics",
+    "pytorch",
+    "ai-for-science",
+    "laser",
+    "optical-tweezer",
+    "physics-engine"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch>=1.10.0",
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "build>=0.8.0",
+    "twine>=4.0.0",
+]
+examples = [
+    "matplotlib>=3.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/XxLCFLXx/photokinetics"
+Repository = "https://github.com/XxLCFLXx/photokinetics"
+Documentation = "https://github.com/XxLCFLXx/photokinetics#readme"
+"Bug Tracker" = "https://github.com/XxLCFLXx/photokinetics/issues"
+"Online Calculator" = "https://xxlcflxx.github.io/photokinetics/calculator/photokinetics_calculator.html"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["photokinetics*"]
+
+[tool.setuptools.package-data]
+photokinetics = ["*.md", "*.txt"]
