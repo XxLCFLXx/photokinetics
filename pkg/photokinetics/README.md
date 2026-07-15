@@ -80,6 +80,29 @@ result = calc_photothermal(1.33, 0.00012, 1064, I0_batch, 1000, 4186, 1.0, 1.0)
 print(result['dT'].shape)  # torch.Size([1000])
 ```
 
+## 实战案例
+
+三个可微物理逆问题实战案例，展示如何用 photokinetics 解决真实工程问题：
+
+| 案例 | 场景 | 反演目标 | 脚本 |
+|------|------|---------|------|
+| 1 | 含时光热参数反演 | 消光系数 κ + 热扩散率 D | `examples/fit_transient_photothermal.py` |
+| 2 | 黑体光谱测温 | 温度 T + 仪器增益 | `examples/fit_blackbody_temperature.py` |
+| 3 | 光镊鲁棒设计 | 光强梯度（多目标优化） | `examples/design_optical_tweezer.py` |
+
+运行案例：
+
+```bash
+python -m examples.fit_transient_photothermal
+python -m examples.fit_blackbody_temperature
+python -m examples.design_optical_tweezer
+```
+
+每个案例都包含：
+- 合成观测数据生成（固定种子，可复现）
+- Adam 优化循环（autograd 梯度反传）
+- 结果验收（参数恢复误差 + loss 下降）
+
 ## 8 个模块速查表
 
 | 模块 | 函数 | 核心参数 |
