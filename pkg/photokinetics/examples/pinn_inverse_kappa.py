@@ -68,8 +68,13 @@ def run_inversion(I0=1e5, seed=42, noise=0.01, steps=5000, lr=1e-3, n_col=256,
                   eval_z_um=None, eval_t_s=None,
                   verbose=True,
                   lr_schedule="constant", lr_min=1e-5,
-                  phys_warmup_steps=0, phys_warmup_max=None):
+                  phys_warmup_steps=0, phys_warmup_max=None,
+                  T_hidden_dim=64, T_num_layers=3):
     """完整 PINN 反演流程。
+
+    新增参数:
+        T_hidden_dim  — T 网络隐藏层宽度（默认 64，实验时可降到 16 以抑制 shortcut）
+        T_num_layers  — T 网络隐藏层数（默认 3，实验时可降到 1）
 
     默认使用 lambda_phys=1.0 和 constant 学习率（适合任意步数）。
     完整实验建议通过 run() 调用，使用 cosine lr + lambda_phys=20 + warmup。
@@ -118,7 +123,7 @@ def run_inversion(I0=1e5, seed=42, noise=0.01, steps=5000, lr=1e-3, n_col=256,
     # ===== 2. 训练 PINN =====
     if verbose:
         print(f"--- 2. 训练 PINN ({steps} 步) ---")
-    T_net = TemperatureNetwork()
+    T_net = TemperatureNetwork(hidden_dim=T_hidden_dim, num_layers=T_num_layers)
     k_net = KappaNetwork()
 
     t_start = time.perf_counter()
